@@ -62,9 +62,11 @@ def validate_cucumber(stacks, staging_account, staging_region, stackset_region):
     for stack in stacks:
         try:
             feature_file = stack['feature_test']
+            feature_file = feature_file[6::]
+            print(feature_file)
             print("Test case found for stack: {}".format(stack['name']))
             try:
-                result = subprocess.run(['cucumber-js', feature_file], stdout=subprocess.PIPE)
+                result = subprocess.run(['node_modules/.bin/cucumber-js', feature_file], stdout=subprocess.PIPE)
                 print(result.stdout.decode('utf-8'))
             except Exception as e:
                 print(e)
