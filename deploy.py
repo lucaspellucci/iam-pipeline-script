@@ -48,7 +48,6 @@ def create_stack_sets(stacks, stackset_region):
 
 
 def validate_cfn_nag(stacks, staging_account, staging_region, stackset_region):
-    operation_ids = {}
     error_count = 0
     for stack in stacks:
         result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file'], '-a', stack['parameter_file']], stdout=subprocess.PIPE)
@@ -58,6 +57,25 @@ def validate_cfn_nag(stacks, staging_account, staging_region, stackset_region):
         print("Failed one or more validation")
         sys.exit(1)
 
+def validate_cucumber(stacks, staging_account, staging_region, stackset_region):
+    error_count = 0
+    for stack in stacks:
+        try:
+            feature_file = stack['feature_test']
+            print("Test case found for stack: {}".format(stack['name']))
+            try:
+                result = subprocess.run(['cucumber-js', feature_file], stdout=subprocess.PIPE)
+                print(result.stdout.decode('utf-8'))
+            except Exception as e:
+                print(e)
+                pass
+            error_count += result.returncode
+        except:
+            print("Test case NOT found for stack: {}".format(stack['name']))
+            pass
+    if error_count > 0:
+        print("Failed one or more validation")
+        sys.exit(1)
 
 def deploy_to_staging(stacks, staging_account, staging_region, stackset_region):
     operation_ids = {}
@@ -117,7 +135,7 @@ def create_stackset_instance(stack_name, accounts, regions, stackset_region):
 
 def main(argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', action='store', dest='name', help='File name', required=True)
+    parser.add_argument('-f', '--file', action='store', dest='name', help='Manifest file name', required=True)
     parser.add_argument('-p', '--phase', action='store', dest='phase', help='Deployment Phase', required=True)
     args = parser.parse_args()
     data = yaml.load(open(args.name))
@@ -137,8 +155,11 @@ def main(argv):
     elif args.phase == "cfn-nag":
         print("Phase - cfn-nag")
         validate_cfn_nag(data['stacks'], staging_account, staging_region, stackset_region)
+    elif args.phase == "cucumber":
+        print("Phase - Cucumber")
+        validate_cucumber(data['stacks'], staging_account, staging_region, stackset_region)
     else:
-        print("Environment not found, try stackset|staging|production")
+        print("Phase not found, try stackset|staging|production|cucumber")
 
 
 main(sys.argv[1:])
