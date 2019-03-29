@@ -50,13 +50,17 @@ def create_stack_sets(stacks, stackset_region):
 def validate_cfn_nag(stacks, staging_account, staging_region, stackset_region):
     error_count = 0
     for stack in stacks:
-        # result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file'], '-a', stack['parameter_file']], stdout=subprocess.PIPE)
-        result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file']], stdout=subprocess.PIPE)
+        # Parameter validation removed as cfn-nag does not work well with it
+        # result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file'],
+        #               '-a', stack['parameter_file']], stdout=subprocess.PIPE)
+        result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file']],
+                                stdout=subprocess.PIPE)
         print(result.stdout.decode('utf-8'))
         error_count += result.returncode
     if error_count > 0:
         print("Failed one or more validation")
         sys.exit(1)
+
 
 def validate_cucumber(stacks, staging_account, staging_region, stackset_region):
     error_count = 0
@@ -67,23 +71,31 @@ def validate_cucumber(stacks, staging_account, staging_region, stackset_region):
             print(feature_file)
             print("Test case found for stack: {}".format(stack['name']))
             try:
-                result = subprocess.run(['node_modules/.bin/cucumber-js', feature_file], stdout=subprocess.PIPE)
+                result = subprocess.run(['node_modules/.bin/cucumber-js',
+                                        feature_file], stdout=subprocess.PIPE)
                 print(result.stdout.decode('utf-8'))
             except Exception as e:
                 print(e)
                 pass
             error_count += result.returncode
-        except:
+        except Exception as e:
             print("Test case NOT found for stack: {}".format(stack['name']))
+            print(e)
             pass
     if error_count > 0:
         print("Failed one or more validation")
         sys.exit(1)
 
+
 def deploy_to_staging(stacks, staging_account, staging_region, stackset_region):
     operation_ids = {}
     for stack in stacks:
-        response = create_stackset_instance(stack['name'], staging_account, staging_region, stackset_region)
+        response = create_stackset_instance(
+            stack['name'],
+            staging_account,
+            staging_region,
+            stackset_region
+            )
         operation_ids[response] = stack['name']
     monitor_operations(operation_ids, stackset_region)
 
@@ -91,7 +103,11 @@ def deploy_to_staging(stacks, staging_account, staging_region, stackset_region):
 def deploy_to_production(stacks, stackset_region):
     operation_ids = {}
     for stack in stacks:
-        response = create_stackset_instance(stack['name'], stack['accounts'], stack['regions'], stackset_region)
+        response = create_stackset_instance(
+            stack['name'],
+            stack['accounts'],
+            stack['regions'],
+            stackset_region)
         operation_ids[response] = stack['name']
     monitor_operations(operation_ids, stackset_region)
 
@@ -109,10 +125,12 @@ def monitor_operations(operation_ids, stackset_region):
             status = response["StackSetOperation"]["Status"]
             if status != 'RUNNING' and status != 'SUCCEEDED':
                 error += 1
-                print("FAILED - Stackeset: {} Status: {} Operation ID: {}".format(stackset_name, status, operation_id))
+                print("FAILED - Stackeset: {} Status: {} Operation ID: {}".format(
+                    stackset_name, status, operation_id))
             elif status != 'RUNNING' and status == 'SUCCEEDED':
                 success += 1
-                print("SUCCESS - Stackeset: {} Status: {} Operation ID: {}".format(stackset_name, status, operation_id))
+                print("SUCCESS - Stackeset: {} Status: {} Operation ID: {}".format(
+                    stackset_name, status, operation_id))
             else:
                 pass
             time.sleep(5)
@@ -138,8 +156,10 @@ def create_stackset_instance(stack_name, accounts, regions, stackset_region):
 
 def main(argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', action='store', dest='name', help='Manifest file name', required=True)
-    parser.add_argument('-p', '--phase', action='store', dest='phase', help='Deployment Phase', required=True)
+    parser.add_argument('-f', '--file', action='store', dest='name',
+                        help='Manifest file name', required=True)
+    parser.add_argument('-p', '--phase', action='store', dest='phase',
+                        help='Deployment Phase', required=True)
     args = parser.parse_args()
     data = yaml.load(open(args.name))
     staging_account = data['staging_account']
@@ -151,16 +171,31 @@ def main(argv):
         create_stack_sets(data['stacks'], stackset_region)
     elif args.phase == "staging":
         print("Phase - Deploy to Staging")
-        deploy_to_staging(data['stacks'], staging_account, staging_region, stackset_region)
+        deploy_to_staging(
+            data['stacks'],
+            staging_account,
+            staging_region,
+            stackset_region
+            )
     elif args.phase == "production":
         print("Phase - Deploy to Production")
         deploy_to_production(data['stacks'], stackset_region)
     elif args.phase == "cfn-nag":
         print("Phase - cfn-nag")
-        validate_cfn_nag(data['stacks'], staging_account, staging_region, stackset_region)
+        validate_cfn_nag(
+            data['stacks'],
+            staging_account,
+            staging_region,
+            stackset_region
+            )
     elif args.phase == "cucumber":
         print("Phase - Cucumber")
-        validate_cucumber(data['stacks'], staging_account, staging_region, stackset_region)
+        validate_cucumber(
+            data['stacks'],
+            staging_account,
+            staging_region,
+            stackset_region
+            )
     else:
         print("Phase not found, try stackset|staging|production|cucumber")
 
