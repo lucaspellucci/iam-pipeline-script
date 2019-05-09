@@ -51,10 +51,10 @@ def validate_cfn_nag(stacks, staging_account, staging_region, stackset_region):
     error_count = 0
     for stack in stacks:
         # Parameter validation removed as cfn-nag does not work well with it
-        # result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file'],
-        #               '-a', stack['parameter_file']], stdout=subprocess.PIPE)
-        result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file']],
-                                stdout=subprocess.PIPE)
+        result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file'],
+                      '-a', stack['parameter_file']], stdout=subprocess.PIPE)
+        # result = subprocess.run(['cfn_nag_scan', '-i', stack['template_file']],
+        #                         stdout=subprocess.PIPE)
         print(result.stdout.decode('utf-8'))
         error_count += result.returncode
     if error_count > 0:
